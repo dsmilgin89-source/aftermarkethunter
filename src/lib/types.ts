@@ -89,6 +89,32 @@ export interface SavedSearch {
   created_at: string;
 }
 
+export interface SearchProgress {
+  phase: "scraping" | "enriching" | "scoring" | "done";
+  detail: string;
+  current: number;
+  total: number | null;
+  marketplace: string | null;
+}
+
+export interface CebulaThresholds {
+  minScore: number;
+  maxPrice: number;
+  minAge: number;
+  minWayback: number;
+  noBlacklist: boolean;
+  noTrademark: boolean;
+}
+
+export const DEFAULT_CEBULA_THRESHOLDS: CebulaThresholds = {
+  minScore: 70,
+  maxPrice: 300,
+  minAge: 3,
+  minWayback: 10,
+  noBlacklist: true,
+  noTrademark: true,
+};
+
 export const DEFAULT_QUERY: Query = {
   phrase: "",
   tlds: [],

@@ -1,10 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Save, Sparkles, AlertTriangle } from "lucide-react";
-import { DEFAULT_QUERY, type Query, type ResultRow } from "@/lib/types";
+import { load } from "@tauri-apps/plugin-store";
+import {
+  DEFAULT_QUERY,
+  DEFAULT_CEBULA_THRESHOLDS,
+  type Query,
+  type ResultRow,
+  type CebulaThresholds,
+} from "@/lib/types";
 import { ipc } from "@/lib/ipc";
 import { SearchBar } from "@/components/SearchBar";
 import { ResultsTable } from "@/components/ResultsTable";
+import { ProgressBar } from "@/components/ProgressBar";
+import { CebulaDeals } from "@/components/CebulaDeals";
 
 const RECOMMENDATION_LIMIT = 10;
 
@@ -13,6 +22,22 @@ export function HuntView() {
   const [query, setQuery] = useState<Query>({ ...DEFAULT_QUERY });
   const [rows, setRows] = useState<ResultRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const [cebulaThresholds, setCebulaThresholds] = useState<CebulaThresholds>({
+    ...DEFAULT_CEBULA_THRESHOLDS,
+  });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const store = await load("settings.json");
+        const stored = await store.get<CebulaThresholds>("cebula");
+        if (stored) setCebulaThresholds(stored);
+      } catch {
+        // plugin not ready
+      }
+    })();
+  }, []);
 
   const watchlistQ = useQuery({
     queryKey: ["watchlist"],
@@ -86,6 +111,8 @@ export function HuntView() {
         loading={searchM.isPending}
       />
 
+      <ProgressBar visible={searchM.isPending} />
+
       {error && (
         <div className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
@@ -97,6 +124,13 @@ export function HuntView() {
 
       {rows.length > 0 && (
         <>
+          <CebulaDeals
+            rows={rows}
+            thresholds={cebulaThresholds}
+            watchedIds={watchedIds}
+            onToggleWatch={(r) => toggleWatchM.mutate(r)}
+          />
+
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
