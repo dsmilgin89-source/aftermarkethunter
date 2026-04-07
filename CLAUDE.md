@@ -42,7 +42,7 @@ SearchBar → ipc.search() → commands::search → Pipeline::run
 
 ```
 src/                          # React/TypeScript frontend
-  components/                 #   SearchBar, ResultsTable, ScoreBadge, ScoreBreakdown, Countdown
+  components/                 #   SearchBar, ResultsTable, ScoreBadge, ScoreBreakdown, Countdown, ProgressBar, CebulaDeals
   routes/                     #   Hunt, Watchlist, SavedSearches, Settings
   lib/
     ipc.ts                    #   Typed Tauri invoke wrappers + cn() utility
@@ -203,7 +203,9 @@ Three profiles with different weight tuples:
 ## Current State & Stubs
 
 **Active:**
-- Scraper: `aftermarket_pl` (fixture-tested HTML parser)
+- Scraper: `aftermarket_pl` (fixture-tested, full pagination via `_start=` param, max 50 pages)
+- Progress bar: Tauri event-based (`search-progress`), phases: scraping → enriching → scoring → done
+- Cebula Deals: configurable thresholds in Settings, displayed on Hunt page above results
 - Enrichers: whois, wayback, blacklist, linguistic, trademark, tld_value
 - Views: Hunt, Watchlist, SavedSearches, Settings
 - Storage: full SQLite schema (listings, enrichment, scores, watchlist, saved_searches)
