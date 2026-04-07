@@ -1,0 +1,17 @@
+node_modules
+dist
+.vite
+
+# Rust
+src-tauri/target
+src-tauri/Cargo.lock
+
+# IDE / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Local config
+settings.json
+*.log
