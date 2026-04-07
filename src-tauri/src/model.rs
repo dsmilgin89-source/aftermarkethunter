@@ -157,3 +157,13 @@ pub struct SavedSearch {
     pub notify: bool,
     pub created_at: DateTime<Utc>,
 }
+
+/// Progress event emitted to the frontend via Tauri events.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchProgress {
+    pub phase: String,
+    pub detail: String,
+    pub current: u32,
+    pub total: Option<u32>,
+    pub marketplace: Option<String>,
+}

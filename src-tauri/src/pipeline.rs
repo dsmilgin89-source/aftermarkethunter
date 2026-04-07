@@ -1,4 +1,4 @@
-//! Search → enrich → score pipeline.
+//! Search → enrich → score pipeline with progress events.
 //!
 //! - Fan-out scrapers in parallel (one per marketplace).
 //! - De-duplicate listings by domain across sources.
@@ -8,12 +8,15 @@
 //! - Returns the assembled `ResultRow`s in score-desc order.
 
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 use anyhow::Result;
 use futures::stream::{FuturesUnordered, StreamExt};
+use tauri::Emitter;
 
 use crate::enrichers;
-use crate::model::{Listing, Query, ResultRow};
+use crate::model::{Listing, Query, ResultRow, SearchProgress};
 use crate::scoring;
 use crate::scrapers;
 
@@ -24,7 +27,11 @@ impl Pipeline {
         Self
     }
 
-    pub async fn run(&self, query: Query) -> Result<Vec<ResultRow>> {
+    fn emit_progress(app: &tauri::AppHandle, progress: SearchProgress) {
+        let _ = app.emit("search-progress", progress);
+    }
+
+    pub async fn run(&self, query: Query, app: tauri::AppHandle) -> Result<Vec<ResultRow>> {
         // 1. Fan-out scrapers
         let scrapers = scrapers::registry_for(&query.sources);
         tracing::info!(n = scrapers.len(), "running scrapers");
@@ -32,8 +39,9 @@ impl Pipeline {
         let mut tasks = FuturesUnordered::new();
         for s in scrapers {
             let q = query.clone();
+            let app_clone = app.clone();
             tasks.push(async move {
-                match s.search(&q).await {
+                match s.search(&q, &app_clone).await {
                     Ok(v) => v,
                     Err(e) => {
                         tracing::warn!(marketplace = s.id(), error = %e, "scraper failed");
@@ -66,19 +74,42 @@ impl Pipeline {
         // 3. Deduplicate by domain
         let mut seen: HashSet<String> = HashSet::new();
         all.retain(|l| seen.insert(l.domain.clone()));
-        tracing::info!(unique = all.len(), "post-dedupe listings");
+        let total_domains = all.len() as u32;
+        tracing::info!(unique = total_domains, "post-dedupe listings");
 
-        // 4. Enrich in parallel (limit 8 in-flight)
+        // 4. Enrich in parallel (limit 8 in-flight) with progress
+        let counter = Arc::new(AtomicU32::new(0));
         let enriched: Vec<(Listing, _)> = futures::stream::iter(all.into_iter())
-            .map(|l| async move {
-                let e = enrichers::enrich_free(&l.domain).await;
-                (l, e)
+            .map(|l| {
+                let app_clone = app.clone();
+                let counter = counter.clone();
+                let total = total_domains;
+                async move {
+                    let e = enrichers::enrich_free(&l.domain).await;
+                    let done = counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    Self::emit_progress(&app_clone, SearchProgress {
+                        phase: "enriching".to_string(),
+                        detail: format!("Enriching {done}/{total} domains..."),
+                        current: done,
+                        total: Some(total),
+                        marketplace: None,
+                    });
+                    (l, e)
+                }
             })
             .buffer_unordered(8)
             .collect()
             .await;
 
         // 5. Score
+        Self::emit_progress(&app, SearchProgress {
+            phase: "scoring".to_string(),
+            detail: format!("Scoring {} results...", enriched.len()),
+            current: 0,
+            total: Some(enriched.len() as u32),
+            marketplace: None,
+        });
+
         let mut rows: Vec<ResultRow> = enriched
             .into_iter()
             .map(|(listing, enrichment)| {
@@ -100,6 +131,16 @@ impl Pipeline {
         }
 
         rows.sort_by(|a, b| b.score.total.partial_cmp(&a.score.total).unwrap_or(std::cmp::Ordering::Equal));
+
+        // 6. Done
+        Self::emit_progress(&app, SearchProgress {
+            phase: "done".to_string(),
+            detail: format!("{} results ready", rows.len()),
+            current: rows.len() as u32,
+            total: Some(rows.len() as u32),
+            marketplace: None,
+        });
+
         Ok(rows)
     }
 }

@@ -23,7 +23,7 @@ pub trait Marketplace: Send + Sync {
     fn rps(&self) -> u32 {
         1
     }
-    async fn search(&self, query: &Query) -> Result<Vec<Listing>>;
+    async fn search(&self, query: &Query, app: &tauri::AppHandle) -> Result<Vec<Listing>>;
 }
 
 /// Returns all built-in marketplaces.

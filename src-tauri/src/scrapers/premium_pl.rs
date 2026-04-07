@@ -18,7 +18,7 @@ impl Marketplace for PremiumPl {
         "premium.pl"
     }
 
-    async fn search(&self, _query: &Query) -> Result<Vec<Listing>> {
+    async fn search(&self, _query: &Query, _app: &tauri::AppHandle) -> Result<Vec<Listing>> {
         // TODO: implement HTML scraping for https://premium.pl once selectors stabilised.
         // Skeleton lives here so the trait registry stays complete and the UI can
         // already toggle the source on/off.

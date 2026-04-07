@@ -17,7 +17,7 @@ impl Marketplace for DroppedPl {
         "dropped.pl"
     }
 
-    async fn search(&self, _query: &Query) -> Result<Vec<Listing>> {
+    async fn search(&self, _query: &Query, _app: &tauri::AppHandle) -> Result<Vec<Listing>> {
         Ok(Vec::new())
     }
 }

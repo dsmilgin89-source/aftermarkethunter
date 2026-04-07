@@ -14,11 +14,15 @@ use crate::AppState;
 // ---------- Search ----------
 
 #[tauri::command]
-pub async fn search(state: State<'_, AppState>, query: Query) -> Result<Vec<ResultRow>, String> {
+pub async fn search(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    query: Query,
+) -> Result<Vec<ResultRow>, String> {
     let pipeline = state.pipeline.clone();
     let storage = state.storage.clone();
 
-    let rows = pipeline.run(query).await.map_err(|e| e.to_string())?;
+    let rows = pipeline.run(query, app).await.map_err(|e| e.to_string())?;
 
     // Persist for the "Recent" view + watchlist resolution.
     {

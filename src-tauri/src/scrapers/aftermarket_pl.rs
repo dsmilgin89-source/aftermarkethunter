@@ -54,6 +54,11 @@ static PRICE_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?i)([\d\s.,]+)\s*(PLN|EUR|USD|zł)").unwrap());
 static DATETIME_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}(?::\d{2})?)").unwrap());
+static TOTAL_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"z\s+(?:<[^>]+>\s*)*(\d+)(?:\s*<[^>]+>)*\s+obiekt").unwrap());
+
+const PAGE_SIZE: u32 = 30;
+const MAX_PAGES: u32 = 50;
 
 pub struct AftermarketPl;
 
@@ -66,59 +71,108 @@ impl Marketplace for AftermarketPl {
         "aftermarket.pl"
     }
 
-    async fn search(&self, query: &Query) -> Result<Vec<Listing>> {
-        rate_limit::wait(self.id(), self.rps()).await;
+    async fn search(&self, query: &Query, app: &tauri::AppHandle) -> Result<Vec<Listing>> {
+        use tauri::Emitter;
+        use crate::model::SearchProgress;
 
-        // Build URL with the parameters the live form actually submits.
-        // Most are blank "show everything" toggles; we just need `domain`,
-        // a currency hint, and the sort placeholder.
-        let url = reqwest::Url::parse_with_params(
-            SEARCH_URL,
-            &[
-                ("domain", query.phrase.as_str()),
-                ("length1", ""),
-                ("length2", ""),
-                ("price1", ""),
-                ("price2", ""),
-                ("price3", "PLN"),
-                ("extension", ""),
-                ("category", ""),
-                ("type", ""),
-                ("start1", ""),
-                ("start2", ""),
-                ("idn", "0"),
-                ("seller", ""),
-                ("bin", "0"),
-                ("auction", "0"),
-                ("offers", "0"),
-                ("hire", "0"),
-                ("rental", "0"),
-                ("group", "0"),
-                ("lastminute", "0"),
-                ("is_catch", "0"),
-                ("future", "0"),
-                ("_sort", ""),
-            ],
-        )
-        .context("building aftermarket.pl url")?;
+        let mut all_listings: Vec<Listing> = Vec::new();
+        let mut start: u32 = 0;
+        let mut total: Option<u32> = None;
+        let mut page: u32 = 0;
 
-        tracing::debug!(%url, "aftermarket.pl search");
-        let resp = CLIENT
-            .get(url.clone())
-            .header("Accept", "text/html,application/xhtml+xml")
-            .header("Accept-Language", "pl-PL,pl;q=0.9,en;q=0.8")
-            .send()
-            .await
-            .with_context(|| format!("GET {url}"))?;
-        let status = resp.status();
-        let body = resp.text().await?;
-        if !status.is_success() {
-            anyhow::bail!("aftermarket.pl returned HTTP {status}");
+        loop {
+            page += 1;
+            if page > MAX_PAGES {
+                tracing::warn!("aftermarket.pl: hit max page limit ({MAX_PAGES}), stopping");
+                break;
+            }
+
+            rate_limit::wait(self.id(), self.rps()).await;
+
+            let start_str = start.to_string();
+            let url = reqwest::Url::parse_with_params(
+                SEARCH_URL,
+                &[
+                    ("domain", query.phrase.as_str()),
+                    ("length1", ""),
+                    ("length2", ""),
+                    ("price1", ""),
+                    ("price2", ""),
+                    ("price3", "PLN"),
+                    ("extension", ""),
+                    ("category", ""),
+                    ("type", ""),
+                    ("start1", ""),
+                    ("start2", ""),
+                    ("idn", "0"),
+                    ("seller", ""),
+                    ("bin", "0"),
+                    ("auction", "0"),
+                    ("offers", "0"),
+                    ("hire", "0"),
+                    ("rental", "0"),
+                    ("group", "0"),
+                    ("lastminute", "0"),
+                    ("is_catch", "0"),
+                    ("future", "0"),
+                    ("_sort", ""),
+                    ("_start", &start_str),
+                ],
+            )
+            .context("building aftermarket.pl url")?;
+
+            tracing::debug!(%url, page, "aftermarket.pl search page");
+            let resp = CLIENT
+                .get(url.clone())
+                .header("Accept", "text/html,application/xhtml+xml")
+                .header("Accept-Language", "pl-PL,pl;q=0.9,en;q=0.8")
+                .send()
+                .await
+                .with_context(|| format!("GET {url}"))?;
+            let status = resp.status();
+            let body = resp.text().await?;
+            if !status.is_success() {
+                anyhow::bail!("aftermarket.pl returned HTTP {status}");
+            }
+
+            if total.is_none() {
+                total = parse_total(&body);
+            }
+
+            let page_listings = parse_listings(&body);
+            let page_count = page_listings.len();
+            all_listings.extend(page_listings);
+
+            let total_pages = total.map(|t| (t + PAGE_SIZE - 1) / PAGE_SIZE);
+            let _ = app.emit("search-progress", SearchProgress {
+                phase: "scraping".to_string(),
+                detail: format!(
+                    "{} — strona {}/{} ({} znalezionych)",
+                    self.label(),
+                    page,
+                    total_pages.map(|t| t.to_string()).unwrap_or("?".to_string()),
+                    all_listings.len(),
+                ),
+                current: page,
+                total: total_pages,
+                marketplace: Some(self.label().to_string()),
+            });
+
+            tracing::info!(page, page_count, total_so_far = all_listings.len(), "aftermarket.pl page parsed");
+
+            if page_count == 0 {
+                break;
+            }
+            start += PAGE_SIZE;
+            if let Some(t) = total {
+                if start >= t {
+                    break;
+                }
+            }
         }
 
-        let listings = parse_listings(&body);
-        tracing::info!(count = listings.len(), "aftermarket.pl results parsed");
-        Ok(listings)
+        tracing::info!(total = all_listings.len(), "aftermarket.pl all pages parsed");
+        Ok(all_listings)
     }
 }
 
@@ -281,6 +335,11 @@ pub fn parse_price(s: &str) -> Option<f64> {
     value.parse::<f64>().ok()
 }
 
+/// Extract total listing count from "Pokazuję 1 - 30 z **98** obiektów".
+fn parse_total(html: &str) -> Option<u32> {
+    TOTAL_RE.captures(html).and_then(|c| c[1].parse().ok())
+}
+
 fn parse_datetime(s: &str) -> Option<DateTime<Utc>> {
     let s = s.replace('T', " ");
     for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"] {
@@ -325,6 +384,15 @@ mod tests {
         let bike = &listings[2];
         assert_eq!(bike.domain, "bikeportal.pl");
         assert_eq!(bike.current_price, Some(49900.0));
+    }
+
+    #[test]
+    fn parses_total_count() {
+        // Plain text
+        assert_eq!(parse_total("z 98 obiektów"), Some(98));
+        // With <strong> tags (actual aftermarket.pl HTML)
+        assert_eq!(parse_total("z <strong>98</strong> obiektów"), Some(98));
+        assert_eq!(parse_total("<div>no pagination</div>"), None);
     }
 
     #[test]
