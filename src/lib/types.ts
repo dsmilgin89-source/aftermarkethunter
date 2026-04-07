@@ -51,6 +51,15 @@ export interface Enrichment {
   google_indexed_estimate?: number | null;
   linguistic: LinguisticReport;
   trademark_warning?: string | null;
+  // Free SEO signals
+  openpagerank_score?: number | null;
+  openpagerank_rank?: number | null;
+  similarweb_rank?: number | null;
+  similarweb_monthly_visits?: number | null;
+  has_mx: boolean;
+  has_spf: boolean;
+  has_dmarc: boolean;
+  // Paid providers (optional)
   ahrefs_dr?: number | null;
   majestic_tf?: number | null;
   majestic_cf?: number | null;
@@ -107,7 +116,7 @@ export interface CebulaThresholds {
 }
 
 export const DEFAULT_CEBULA_THRESHOLDS: CebulaThresholds = {
-  minScore: 70,
+  minScore: 55,
   maxPrice: 300,
   minAge: 3,
   minWayback: 10,

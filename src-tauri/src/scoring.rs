@@ -90,20 +90,20 @@ fn seo_subscore(e: &Enrichment, explain: &mut Vec<String>) -> f32 {
     // Age — sigmoid centred on 5 years.
     if let Some(age) = e.age_years {
         let age_score = sigmoid((age - 5.0) / 3.0) * 100.0;
-        s += age_score * 0.45;
-        weight_sum += 0.45;
+        s += age_score * 0.40;
+        weight_sum += 0.40;
         explain.push(format!("Domain age: {:.1}y → {:.0}/100", age, age_score));
     }
 
     // Wayback snapshots — log scale.
     if let Some(snap) = e.wayback_snapshots {
         let snap_score = ((snap as f32 + 1.0).ln() / 9.0_f32.ln() * 100.0).clamp(0.0, 100.0);
-        s += snap_score * 0.35;
-        weight_sum += 0.35;
+        s += snap_score * 0.30;
+        weight_sum += 0.30;
         explain.push(format!("Wayback snapshots: {} → {:.0}/100", snap, snap_score));
     }
 
-    // Paid signals — only when present.
+    // Paid signals — highest priority when present.
     if let Some(dr) = e.ahrefs_dr {
         s += dr * 0.20;
         weight_sum += 0.20;
@@ -112,12 +112,85 @@ fn seo_subscore(e: &Enrichment, explain: &mut Vec<String>) -> f32 {
         s += tf * 0.20;
         weight_sum += 0.20;
         explain.push(format!("Majestic TF: {tf:.0}"));
+    } else {
+        // Free SEO signals — composite fallback when no paid API keys.
+        let free_score = free_seo_composite(e, explain);
+        s += free_score * 0.20;
+        weight_sum += 0.20;
+    }
+
+    // DNS quality bonus (always available, small weight).
+    let dns_score = dns_quality_score(e);
+    if dns_score > 0.0 {
+        s += dns_score * 0.10;
+        weight_sum += 0.10;
+        let parts: Vec<&str> = [
+            if e.has_mx { Some("MX") } else { None },
+            if e.has_spf { Some("SPF") } else { None },
+            if e.has_dmarc { Some("DMARC") } else { None },
+        ]
+        .iter()
+        .filter_map(|x| *x)
+        .collect();
+        if !parts.is_empty() {
+            explain.push(format!("DNS signals: {} → {:.0}/100", parts.join("+"), dns_score));
+        }
     }
 
     if weight_sum == 0.0 {
         return 30.0; // unknown — neutral-low
     }
     (s / weight_sum).clamp(0.0, 100.0)
+}
+
+/// Composite score from free SEO sources (Open PageRank + Similarweb).
+/// Used as fallback when no paid API key (Ahrefs/Majestic) is configured.
+fn free_seo_composite(e: &Enrichment, explain: &mut Vec<String>) -> f32 {
+    let mut total = 0.0;
+    let mut count = 0.0;
+
+    // Open PageRank (0-10 scale → 0-100)
+    if let Some(pr) = e.openpagerank_score {
+        let pr_score = (pr / 10.0 * 100.0).clamp(0.0, 100.0);
+        total += pr_score;
+        count += 1.0;
+        explain.push(format!("Open PageRank: {pr:.1}/10 → {pr_score:.0}/100"));
+    }
+
+    // Similarweb rank (lower = better, log-scaled)
+    if let Some(rank) = e.similarweb_rank {
+        if rank > 0 {
+            let rank_score = (100.0 - (rank as f32).log10() * 15.0).clamp(0.0, 100.0);
+            total += rank_score;
+            count += 1.0;
+            explain.push(format!("Similarweb rank: #{rank} → {rank_score:.0}/100"));
+        }
+    }
+
+    // Similarweb monthly visits bonus
+    if let Some(visits) = e.similarweb_monthly_visits {
+        if visits > 0 {
+            let visits_score = ((visits as f32).log10() * 20.0).clamp(0.0, 100.0);
+            total += visits_score;
+            count += 1.0;
+            explain.push(format!("Monthly visits: {visits} → {visits_score:.0}/100"));
+        }
+    }
+
+    if count == 0.0 {
+        30.0 // no free signals either — neutral fallback
+    } else {
+        total / count
+    }
+}
+
+/// DNS quality: MX + SPF + DMARC → configured email = legitimate domain.
+fn dns_quality_score(e: &Enrichment) -> f32 {
+    let mut score = 0.0;
+    if e.has_mx { score += 40.0; }
+    if e.has_spf { score += 30.0; }
+    if e.has_dmarc { score += 30.0; }
+    score
 }
 
 fn relevance_subscore(
@@ -180,8 +253,17 @@ fn estimate_worth(listing: &Listing, e: &Enrichment) -> f32 {
         * 0.5;
     let brand_bonus = e.linguistic.brandability * 4.0;
     let dr_bonus = e.ahrefs_dr.unwrap_or(0.0) * 25.0;
+    // Free SEO bonuses
+    let pagerank_bonus = e.openpagerank_score.unwrap_or(0.0) * 200.0;
+    let traffic_bonus = e
+        .similarweb_monthly_visits
+        .map(|v| if v > 0 { (v as f32).log10() * 100.0 } else { 0.0 })
+        .unwrap_or(0.0);
+    let dns_bonus = if e.has_mx { 50.0 } else { 0.0 }
+        + if e.has_spf { 30.0 } else { 0.0 }
+        + if e.has_dmarc { 20.0 } else { 0.0 };
     let base = 80.0;
-    (base + age_bonus + wayback_bonus + brand_bonus + dr_bonus) * tld_factor
+    (base + age_bonus + wayback_bonus + brand_bonus + dr_bonus + pagerank_bonus + traffic_bonus + dns_bonus) * tld_factor
 }
 
 fn risk_subscore(e: &Enrichment, explain: &mut Vec<String>) -> f32 {

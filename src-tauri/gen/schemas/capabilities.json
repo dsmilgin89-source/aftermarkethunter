@@ -1,1 +1,0 @@
-{"default":{"identifier":"default","description":"Default capabilities for Aftermarket Hunter","local":true,"windows":["main"],"permissions":["core:default","opener:default","notification:default","store:default","dialog:default"]}}

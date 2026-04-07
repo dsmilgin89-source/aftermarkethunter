@@ -31,7 +31,7 @@ impl Pipeline {
         let _ = app.emit("search-progress", progress);
     }
 
-    pub async fn run(&self, query: Query, app: tauri::AppHandle) -> Result<Vec<ResultRow>> {
+    pub async fn run(&self, query: Query, app: tauri::AppHandle, openpagerank_key: String) -> Result<Vec<ResultRow>> {
         // 1. Fan-out scrapers
         let scrapers = scrapers::registry_for(&query.sources);
         tracing::info!(n = scrapers.len(), "running scrapers");
@@ -83,9 +83,10 @@ impl Pipeline {
             .map(|l| {
                 let app_clone = app.clone();
                 let counter = counter.clone();
+                let opr_key = openpagerank_key.clone();
                 let total = total_domains;
                 async move {
-                    let e = enrichers::enrich_free(&l.domain).await;
+                    let e = enrichers::enrich_free(&l.domain, &opr_key).await;
                     let done = counter.fetch_add(1, Ordering::Relaxed) + 1;
                     Self::emit_progress(&app_clone, SearchProgress {
                         phase: "enriching".to_string(),

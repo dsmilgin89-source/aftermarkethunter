@@ -7,7 +7,6 @@
 //! - has a fixture-based unit test in `tests/fixtures/` so we don't depend on the network
 
 pub mod aftermarket_pl;
-pub mod premium_pl;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -18,18 +17,15 @@ use crate::model::{Listing, Query};
 pub trait Marketplace: Send + Sync {
     fn id(&self) -> &'static str;
     fn label(&self) -> &'static str;
-    /// Suggested politeness budget (requests per second).
     fn rps(&self) -> u32 {
         1
     }
     async fn search(&self, query: &Query, app: &tauri::AppHandle) -> Result<Vec<Listing>>;
 }
 
-/// Returns all built-in marketplaces.
 pub fn registry() -> Vec<Box<dyn Marketplace>> {
     vec![
         Box::new(aftermarket_pl::AftermarketPl),
-        Box::new(premium_pl::PremiumPl),
     ]
 }
 

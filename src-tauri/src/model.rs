@@ -79,6 +79,14 @@ pub struct Enrichment {
     pub google_indexed_estimate: Option<u32>,
     pub linguistic: LinguisticReport,
     pub trademark_warning: Option<String>,
+    // Free SEO signals (no API key required for DNS/Similarweb)
+    pub openpagerank_score: Option<f32>,
+    pub openpagerank_rank: Option<u64>,
+    pub similarweb_rank: Option<u64>,
+    pub similarweb_monthly_visits: Option<u64>,
+    pub has_mx: bool,
+    pub has_spf: bool,
+    pub has_dmarc: bool,
     /// Optional, only when API keys are configured.
     pub ahrefs_dr: Option<f32>,
     pub majestic_tf: Option<f32>,

@@ -18,11 +18,13 @@ pub async fn search(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     query: Query,
+    openpagerank_key: Option<String>,
 ) -> Result<Vec<ResultRow>, String> {
     let pipeline = state.pipeline.clone();
     let storage = state.storage.clone();
+    let opr_key = openpagerank_key.unwrap_or_default();
 
-    let rows = pipeline.run(query, app).await.map_err(|e| e.to_string())?;
+    let rows = pipeline.run(query, app, opr_key).await.map_err(|e| e.to_string())?;
 
     // Persist for the "Recent" view + watchlist resolution.
     {

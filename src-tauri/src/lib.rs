@@ -5,8 +5,8 @@
 //! - `storage`      : SQLite cache + watchlist + saved searches
 //! - `rate_limit`   : per-marketplace politeness limiter
 //! - `http`         : shared reqwest client (User-Agent, timeouts)
-//! - `scrapers`     : marketplace scrapers (aftermarket.pl, premium.pl)
-//! - `enrichers`    : free enrichment (whois, wayback, blacklist, linguistic)
+//! - `scrapers`     : marketplace scrapers (aftermarket.pl)
+//! - `enrichers`    : free enrichment (whois, wayback, blacklist, linguistic, openpagerank, similarweb, dns)
 //! - `scoring`      : SEO + price + relevance + risk → 0..100 score
 //! - `pipeline`     : orchestrates search → enrichment → score
 //! - `commands`     : Tauri IPC commands invoked from the React UI

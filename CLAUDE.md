@@ -65,7 +65,6 @@ src-tauri/                    # Rust backend
     scrapers/
       mod.rs                  #   Marketplace trait + registry
       aftermarket_pl.rs       #   Active — HTML scraper with fixture test
-      premium_pl.rs           #   Stub (returns empty)
     enrichers/
       mod.rs                  #   Enricher composition, enrich_free()
       whois.rs                #   TCP/43 WHOIS → domain age
@@ -74,6 +73,9 @@ src-tauri/                    # Rust backend
       linguistic.rs           #   Brandability/pronounceability heuristics
       trademark.rs            #   In-memory brand list substring check
       tld_value.rs            #   Static TLD score table (.pl=100, .com=95, ...)
+      openpagerank.rs         #   Open PageRank API (free key, 0-10 score)
+      similarweb.rs           #   Similarweb free API (rank + monthly visits)
+      dns_quality.rs          #   DNS MX/SPF/DMARC presence checks
   tests/fixtures/             #   HTML fixtures for scraper tests
 ```
 
@@ -147,7 +149,7 @@ Three profiles with different weight tuples:
 | Bargain | 0.30 | 0.10 | 0.60 |
 
 **Sub-scores** (each 0–100):
-- **SEO**: domain age (sigmoid, center=5y) + Wayback snapshots (log scale) + DR/TF if available
+- **SEO**: domain age (sigmoid, center=5y, 0.40) + Wayback snapshots (log scale, 0.30) + paid DR/TF (0.20) OR free composite (PageRank+Similarweb+traffic, 0.20) + DNS quality bonus (MX/SPF/DMARC, 0.10)
 - **Relevance**: Jaro-Winkler name similarity (65%) + brandability (35%)
 - **Value**: `log(estimated_worth / current_price)` scaled — `estimate_worth` is a hand-calibrated heuristic (base 80 PLN + age/wayback/brand/DR bonuses × TLD factor)
 - **Risk penalty** (0–60 cap): blacklist hits, trademark, length >18, hyphens
@@ -205,13 +207,12 @@ Three profiles with different weight tuples:
 - Scraper: `aftermarket_pl` (fixture-tested, full pagination via `_start=` param, max 50 pages)
 - Progress bar: Tauri event-based (`search-progress`), phases: scraping → enriching → scoring → done
 - Cebula Deals: configurable thresholds in Settings, displayed on Hunt page above results
-- Enrichers: whois, wayback, blacklist, linguistic, trademark, tld_value
+- Enrichers: whois, wayback, blacklist, linguistic, trademark, tld_value, openpagerank (free key), similarweb (no key), dns_quality (no key)
 - Views: Hunt, Watchlist, SavedSearches, Settings
 - Storage: full SQLite schema (listings, enrichment, scores, watchlist, saved_searches)
 - CSV export
 
 **Stubs / Placeholders:**
-- Scraper: `premium_pl` (trait wired, returns empty)
 - Paid enrichers: Ahrefs, Majestic, Moz, DataForSEO, SerpApi (fields in model, no HTTP calls)
 - `set_api_key` command (no-op; keys stored via plugin-store on frontend)
 - `get_api_key_status` (hardcoded all `false`)

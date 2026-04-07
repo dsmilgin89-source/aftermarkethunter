@@ -4,9 +4,9 @@ import { load } from "@tauri-apps/plugin-store";
 import type { CebulaThresholds } from "@/lib/types";
 import { DEFAULT_CEBULA_THRESHOLDS } from "@/lib/types";
 
-type Provider = "ahrefs" | "majestic" | "moz" | "dataforseo" | "serpapi";
+type Provider = "ahrefs" | "majestic" | "moz" | "dataforseo" | "serpapi" | "openpagerank";
 
-const PROVIDERS: {
+const PAID_PROVIDERS: {
   id: Provider;
   label: string;
   hint: string;
@@ -41,6 +41,7 @@ export function SettingsView() {
     moz: "",
     dataforseo: "",
     serpapi: "",
+    openpagerank: "",
   });
   const [saved, setSaved] = useState<Record<Provider, boolean>>({
     ahrefs: false,
@@ -48,6 +49,7 @@ export function SettingsView() {
     moz: false,
     dataforseo: false,
     serpapi: false,
+    openpagerank: false,
   });
 
   const [cebula, setCebula] = useState<CebulaThresholds>({
@@ -60,7 +62,7 @@ export function SettingsView() {
       try {
         const store = await load("settings.json");
         const next: Record<Provider, string> = { ...keys };
-        for (const p of PROVIDERS) {
+        for (const p of [...PAID_PROVIDERS, { id: "openpagerank" as Provider }]) {
           const v = (await store.get<string>(`apiKeys.${p.id}`)) ?? "";
           next[p.id] = v;
         }
@@ -197,9 +199,69 @@ export function SettingsView() {
 
       <section className="space-y-4">
         <h2 className="text-sm font-medium uppercase tracking-wider text-subtle">
+          Darmowe narzędzia SEO
+        </h2>
+        <p className="text-xs text-muted">
+          Open PageRank — darmowy klucz API (bez karty kredytowej). Wzbogaca
+          scoring o dane PageRank bez płatnych narzędzi. Similarweb i DNS
+          działają automatycznie, bez klucza.
+        </p>
+        <div className="flex items-start gap-3 rounded-md border border-border bg-surface p-4">
+          <Key className="mt-1 h-4 w-4 text-subtle" />
+          <div className="flex-1 space-y-1.5">
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="openpagerank" className="text-sm font-medium text-text">
+                Open PageRank
+              </label>
+              <a
+                href="https://www.domcop.com/openpagerank/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-accent hover:underline"
+              >
+                Zarejestruj się (darmowy klucz) →
+              </a>
+            </div>
+            <div className="flex gap-2">
+              <input
+                id="openpagerank"
+                type="password"
+                value={keys.openpagerank}
+                onChange={(e) =>
+                  setKeys((k) => ({ ...k, openpagerank: e.target.value }))
+                }
+                placeholder="API key..."
+                className="h-9 flex-1 rounded-sm border border-border bg-surface-2 px-2 font-mono text-xs text-text placeholder:text-subtle focus:border-white/20 focus:outline-none"
+              />
+              <button
+                onClick={() => save("openpagerank")}
+                className="flex h-9 items-center gap-1.5 rounded-sm bg-white px-3 text-xs font-medium text-black hover:bg-white/90"
+              >
+                {saved.openpagerank ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" /> Saved
+                  </>
+                ) : (
+                  "Save"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-md border border-border bg-surface p-4 text-sm text-muted">
+          <p>Działają automatycznie (bez klucza):</p>
+          <ul className="mt-1 list-disc pl-5 text-xs">
+            <li><span className="text-text">Similarweb</span> — globalny ranking i estymata ruchu</li>
+            <li><span className="text-text">DNS Quality</span> — MX, SPF, DMARC (sygnał aktywnej domeny)</li>
+          </ul>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-subtle">
           Płatne dostawcy SEO
         </h2>
-        {PROVIDERS.map((p) => (
+        {PAID_PROVIDERS.map((p) => (
           <div
             key={p.id}
             className="flex items-start gap-3 rounded-md border border-border bg-surface p-4"
@@ -248,13 +310,7 @@ export function SettingsView() {
         <div className="rounded-md border border-border bg-surface p-4 text-sm text-muted">
           <p>
             Aktywne: <span className="text-text">aftermarket.pl</span> (pełna
-            paginacja)
-          </p>
-          <p className="mt-1">
-            W przygotowaniu:{" "}
-            <span className="text-subtle">premium.pl</span> —
-            scraper zostanie uaktywniony gdy selektory zostaną dopięte do
-            aktualnego layoutu serwisu.
+            paginacja, max 50 stron)
           </p>
         </div>
       </section>

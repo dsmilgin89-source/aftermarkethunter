@@ -26,6 +26,7 @@ export function HuntView() {
   const [cebulaThresholds, setCebulaThresholds] = useState<CebulaThresholds>({
     ...DEFAULT_CEBULA_THRESHOLDS,
   });
+  const [openpagerankKey, setOpenpagerankKey] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -33,6 +34,8 @@ export function HuntView() {
         const store = await load("settings.json");
         const stored = await store.get<CebulaThresholds>("cebula");
         if (stored) setCebulaThresholds(stored);
+        const oprKey = (await store.get<string>("apiKeys.openpagerank")) ?? "";
+        setOpenpagerankKey(oprKey);
       } catch {
         // plugin not ready
       }
@@ -49,7 +52,7 @@ export function HuntView() {
   );
 
   const searchM = useMutation({
-    mutationFn: (q: Query) => ipc.search(q),
+    mutationFn: (q: Query) => ipc.search(q, openpagerankKey),
     onSuccess: (data) => {
       setRows(data);
       setError(null);
@@ -98,9 +101,9 @@ export function HuntView() {
           Polowanie
         </h1>
         <p className="text-sm text-muted">
-          Wpisz frazę lub nazwę. Łączymy aftermarket.pl (oraz premium.pl
-          gdy scraper jest włączony), wzbogacamy każdą domenę
-          danymi Wayback/WHOIS/blacklist i scorujemy pod wybrany profil.
+          Wpisz frazę lub nazwę. Skanujemy aftermarket.pl, wzbogacamy każdą
+          domenę danymi SEO (Wayback, WHOIS, PageRank, DNS, Similarweb)
+          i scorujemy pod wybrany profil.
         </p>
       </header>
 

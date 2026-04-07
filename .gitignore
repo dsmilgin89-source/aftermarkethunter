@@ -1,17 +1,36 @@
-node_modules
-dist
-.vite
+# Dependencies
+node_modules/
 
-# Rust
-src-tauri/target
-src-tauri/Cargo.lock
+# Build output
+dist/
+.vite/
+
+# Rust build artifacts (Cargo.lock is committed — binary crate)
+src-tauri/target/
+
+# Generated / compiled TS artifacts
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Tauri auto-generated schemas (regenerated on build)
+src-tauri/gen/
 
 # IDE / OS
-.vscode
-.idea
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
 
-# Local config
+# Claude Code local settings
+.claude/
+
+# Local config / secrets
 settings.json
 *.log
+*.env
+
+# Superpowers planning docs (dev-only, not needed in repo)
+docs/superpowers/

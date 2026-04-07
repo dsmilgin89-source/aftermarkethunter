@@ -10,7 +10,8 @@ import type {
 } from "./types";
 
 export const ipc = {
-  search: (query: Query) => invoke<ResultRow[]>("search", { query }),
+  search: (query: Query, openpagerankKey?: string) =>
+    invoke<ResultRow[]>("search", { query, openpagerankKey: openpagerankKey ?? null }),
 
   listRecentResults: (limit?: number) =>
     invoke<Listing[]>("list_recent_results", { limit }),
