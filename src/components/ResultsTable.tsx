@@ -18,6 +18,7 @@ import {
   Star,
   StarOff,
 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import type { ResultRow } from "@/lib/types";
 import { ScoreBadge } from "./ScoreBadge";
 import { ScoreBreakdown } from "./ScoreBreakdown";
@@ -177,7 +178,7 @@ export function ResultsTable({
               </IconButton>
               <IconButton
                 label="Otwórz aukcję"
-                onClick={() => window.open(r.listing.url, "_blank")}
+                onClick={() => openUrl(r.listing.url)}
               >
                 <ExternalLink className="h-4 w-4" />
               </IconButton>
