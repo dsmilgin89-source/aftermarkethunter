@@ -252,9 +252,9 @@ export function SettingsView() {
           </p>
           <p className="mt-1">
             W przygotowaniu:{" "}
-            <span className="text-subtle">premium.pl, dropped.pl</span> —
-            scrapery zostaną uaktywnione gdy ich selektory zostaną dopięte do
-            aktualnego layoutu obu serwisów.
+            <span className="text-subtle">premium.pl</span> —
+            scraper zostanie uaktywniony gdy selektory zostaną dopięte do
+            aktualnego layoutu serwisu.
           </p>
         </div>
       </section>

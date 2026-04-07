@@ -98,8 +98,8 @@ export function HuntView() {
           Polowanie
         </h1>
         <p className="text-sm text-muted">
-          Wpisz frazę lub nazwę. Łączymy aftermarket.pl (oraz premium.pl i
-          dropped.pl gdy ich scrapery są włączone), wzbogacamy każdą domenę
+          Wpisz frazę lub nazwę. Łączymy aftermarket.pl (oraz premium.pl
+          gdy scraper jest włączony), wzbogacamy każdą domenę
           danymi Wayback/WHOIS/blacklist i scorujemy pod wybrany profil.
         </p>
       </header>

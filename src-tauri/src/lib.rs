@@ -5,7 +5,7 @@
 //! - `storage`      : SQLite cache + watchlist + saved searches
 //! - `rate_limit`   : per-marketplace politeness limiter
 //! - `http`         : shared reqwest client (User-Agent, timeouts)
-//! - `scrapers`     : marketplace scrapers (aftermarket.pl, premium.pl, dropped.pl)
+//! - `scrapers`     : marketplace scrapers (aftermarket.pl, premium.pl)
 //! - `enrichers`    : free enrichment (whois, wayback, blacklist, linguistic)
 //! - `scoring`      : SEO + price + relevance + risk → 0..100 score
 //! - `pipeline`     : orchestrates search → enrichment → score

@@ -66,7 +66,6 @@ src-tauri/                    # Rust backend
       mod.rs                  #   Marketplace trait + registry
       aftermarket_pl.rs       #   Active — HTML scraper with fixture test
       premium_pl.rs           #   Stub (returns empty)
-      dropped_pl.rs           #   Stub (returns empty)
     enrichers/
       mod.rs                  #   Enricher composition, enrich_free()
       whois.rs                #   TCP/43 WHOIS → domain age
@@ -212,7 +211,7 @@ Three profiles with different weight tuples:
 - CSV export
 
 **Stubs / Placeholders:**
-- Scrapers: `premium_pl`, `dropped_pl` (trait wired, return empty)
+- Scraper: `premium_pl` (trait wired, returns empty)
 - Paid enrichers: Ahrefs, Majestic, Moz, DataForSEO, SerpApi (fields in model, no HTTP calls)
 - `set_api_key` command (no-op; keys stored via plugin-store on frontend)
 - `get_api_key_status` (hardcoded all `false`)

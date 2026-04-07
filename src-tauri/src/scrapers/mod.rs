@@ -8,7 +8,6 @@
 
 pub mod aftermarket_pl;
 pub mod premium_pl;
-pub mod dropped_pl;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -31,7 +30,6 @@ pub fn registry() -> Vec<Box<dyn Marketplace>> {
     vec![
         Box::new(aftermarket_pl::AftermarketPl),
         Box::new(premium_pl::PremiumPl),
-        Box::new(dropped_pl::DroppedPl),
     ]
 }
 
